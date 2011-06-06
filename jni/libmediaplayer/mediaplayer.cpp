@@ -340,23 +340,30 @@ void MediaPlayer::decode(AVFrame* frame, double pts)
 	f->linesize[2] = frame->linesize[2];
 	f->linesize[3] = frame->linesize[3];
 **/
-	while (sPlayer->mVideoQueue.size()>0) {
+	sPlayer->showPreview(frame, pts);
+}
+
+
+void MediaPlayer::showPreview(AVFrame* frame, double pts)
+{
+	while (mVideoQueue.size()>0&&mCurrentState != MEDIA_PLAYER_DECODED && mCurrentState != MEDIA_PLAYER_STOPPED &&
+		   mCurrentState != MEDIA_PLAYER_STATE_ERROR) {
 		usleep(2*10000);
 	}
 	
-
-	sPlayer->mVideoQueue.push(frame);
-
+    vp->frame=frame;
+	vp->pts=pts;
+	
+	sPlayer->mVideoQueue.push(vp);
+	
 	__android_log_print(ANDROID_LOG_INFO, TAG, "2");
 	
-	
-     
-
 }
 
-void MediaPlayer::add_db_time()
+
+void MediaPlayer::add_db_time(double pts)
 {
-	double pts,delay,ref_clock,diff,actual_delay=0;
+	double delay,ref_clock,diff,actual_delay=0;
 	delay = pts - frame_last_pts; /* the pts from last time */
 	if(delay <= 0 || delay >= 1.0) {
 		/* if incorrect delay, use previous one */
@@ -394,12 +401,41 @@ void MediaPlayer::add_db_time()
     __android_log_print(ANDROID_LOG_INFO, TAG, "frame_timer: %f",frame_timer);
 	__android_log_print(ANDROID_LOG_INFO, TAG, "actual_delay:%f",actual_delay);
 	__android_log_print(ANDROID_LOG_INFO, TAG, "pts:%f",pts);
-    
+    long ldelay=delay*100000;
+	ldelay=ldelay==0?1:ldelay;
+	__android_log_print(ANDROID_LOG_INFO, TAG, "ldelay:%ld",ldelay);
 	//sPlayer->vp->frame=frame;
 	//vp->frame=frame;
 	// Convert the image from its native format to RGB
-	video_display(NULL,pts);
+	//video_display(NULL,pts);
 	//SetTimer()
+	
+	int res = 0;
+	// Register printMsg to SIGALRM
+	signal(SIGALRM, time_update_video);
+	  
+	struct itimerval tick;
+	// Initialize struct
+    memset(&tick, 0, sizeof(tick));
+	// Timeout to run function first time
+	tick.it_value.tv_sec = 0;  // sec
+    tick.it_value.tv_usec = ldelay; // micro sec.
+	// Interval time to run function
+	//tick.it_interval.tv_sec = 1;
+	//tick.it_interval.tv_usec = 0;
+    // Set timer, ITIMER_REAL : real-time to decrease timer,
+	//                          send SIGALRM when timeout
+	res = setitimer(ITIMER_REAL, &tick, NULL);
+	if (res) 
+	{
+		printf("Set timer failed!!\n");
+	}
+}
+
+void MediaPlayer::time_update_video(int num)
+{
+	sPlayer->render(NULL);
+
 }
 
 void MediaPlayer::video_display(AVFrame *frame,double pts)
@@ -509,22 +545,26 @@ void MediaPlayer::decodeMovie(void* ptr)
 
 void MediaPlayer::render(void* ptr)
 {
+	
+	/**
 	while (mCurrentState != MEDIA_PLAYER_DECODED && mCurrentState != MEDIA_PLAYER_STOPPED &&
 			   mCurrentState != MEDIA_PLAYER_STATE_ERROR)
 	{
 		int length = mVideoQueue.size();
 		if(length > 0) {
-		    AVFrame** frames = mVideoQueue.editArray();
+		   // AVFrame** frames = mVideoQueue.editArray();
+			VideoPicture** vps = mVideoQueue.editArray();
 		    mVideoQueue.clear();
 		    for(int i=0;i<length;i++) {
-		    	AVFrame* frame = frames[i];
+		    	//AVFrame* frame = frames[i];
+				VideoPicture* cvp = vps[i];
 
 		    	//__android_log_print(ANDROID_LOG_INFO, TAG, "3");
 
 		    	// Convert the image from its native format to RGB
 		    	sws_scale(sPlayer->mConvertCtx,
-		    		      frame->data,
-		    		      frame->linesize,
+		    		      cvp->frame->data,
+		    		      cvp->frame->linesize,
 		    			  0,
 		    			  mVideoHeight,
 		    			  mFrame->data,
@@ -537,7 +577,45 @@ void MediaPlayer::render(void* ptr)
 		    }
 		}
 		usleep(20*10000);
+	}**/
+	if(mCurrentState == MEDIA_PLAYER_DECODED || mCurrentState == MEDIA_PLAYER_STOPPED ||
+		mCurrentState == MEDIA_PLAYER_STATE_ERROR)
+	{
+		   return ;
+    }
+	while (mCurrentState != MEDIA_PLAYER_DECODED && mCurrentState != MEDIA_PLAYER_STOPPED &&
+			   mCurrentState != MEDIA_PLAYER_STATE_ERROR&&mVideoQueue.size()==0) {
+		usleep(20);
 	}
+			  
+	int length = mVideoQueue.size();
+		   if(length > 0) {
+			   // AVFrame** frames = mVideoQueue.editArray();
+			   VideoPicture** vps = mVideoQueue.editArray();
+			   mVideoQueue.clear();
+			   for(int i=0;i<length;i++) {
+				   //AVFrame* frame = frames[i];
+				   VideoPicture* cvp = vps[i];
+				   
+				   __android_log_print(ANDROID_LOG_INFO, TAG, "3");
+				   
+				   // Convert the image from its native format to RGB
+				   sws_scale(sPlayer->mConvertCtx,
+							 cvp->frame->data,
+							 cvp->frame->linesize,
+							 0,
+							 mVideoHeight,
+							 mFrame->data,
+							 mFrame->linesize);
+				   
+				   Output::VideoDriver_updateSurface();
+				   //av_free(frame);
+				   add_db_time(cvp->pts);
+
+				   __android_log_print(ANDROID_LOG_INFO, TAG, "4");
+			   }
+		   }
+		   
 }
 
 void* MediaPlayer::startPlayer(void* ptr)
