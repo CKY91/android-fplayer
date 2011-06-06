@@ -170,6 +170,7 @@ private:
 
 	void						decodeMovie(void* ptr);
 	void 						render(void* ptr);
+	void                        add_db_time();
 	static void                 video_display(AVFrame* frame,double pts);
 	double 						mTime;
 	pthread_mutex_t             mLock;
@@ -201,7 +202,12 @@ private:
     int                         mVideoWidth;
     int                         mVideoHeight;
 	VideoPicture    		    *vp;
-		
+	double						frame_timer;
+	double						frame_last_pts;
+	double						frame_last_delay;
+	double						video_clock; ///<pts of last decoded frame / predicted pts of next decoded frame
+	
+	
 };
 
 #endif // FFMPEG_MEDIAPLAYER_H
