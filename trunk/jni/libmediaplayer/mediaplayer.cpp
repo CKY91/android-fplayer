@@ -339,11 +339,16 @@ void MediaPlayer::decode(AVFrame* frame, double pts)
 	f->linesize[1] = frame->linesize[1];
 	f->linesize[2] = frame->linesize[2];
 	f->linesize[3] = frame->linesize[3];
+**/
+	while (sPlayer->mVideoQueue.size()>0) {
+		usleep(2*10000);
+	}
+	
 
-	sPlayer->mVideoQueue.push(f);
+	sPlayer->mVideoQueue.push(frame);
 
 	__android_log_print(ANDROID_LOG_INFO, TAG, "2");
-	*/
+	
 	
      
 
@@ -514,7 +519,7 @@ void MediaPlayer::render(void* ptr)
 		    for(int i=0;i<length;i++) {
 		    	AVFrame* frame = frames[i];
 
-		    	__android_log_print(ANDROID_LOG_INFO, TAG, "3");
+		    	//__android_log_print(ANDROID_LOG_INFO, TAG, "3");
 
 		    	// Convert the image from its native format to RGB
 		    	sws_scale(sPlayer->mConvertCtx,
@@ -526,9 +531,9 @@ void MediaPlayer::render(void* ptr)
 		    			  mFrame->linesize);
 
 		    	Output::VideoDriver_updateSurface();
-		    	av_free(frame);
+		    	//av_free(frame);
 
-		    	__android_log_print(ANDROID_LOG_INFO, TAG, "4");
+		    	//__android_log_print(ANDROID_LOG_INFO, TAG, "4");
 		    }
 		}
 		usleep(20);
@@ -554,7 +559,7 @@ status_t MediaPlayer::start()
 		return INVALID_OPERATION;
 	}
 	pthread_create(&mPlayerThread, NULL, startPlayer, NULL);
-	//pthread_create(&mRenderThread, NULL, startRendering, NULL);
+	pthread_create(&mRenderThread, NULL, startRendering, NULL);
 	return NO_ERROR;
 }
 
