@@ -29,11 +29,6 @@ extern "C" {
 #define FPS_DEBUGGING false
 
 static MediaPlayer* sPlayer;
-static double						frame_timer;
-static double						frame_last_pts;
-static double						frame_last_delay;
-static double						video_clock; ///<pts of last decoded frame / predicted pts of next decoded frame
-
 MediaPlayer::MediaPlayer()
 {
     mListener = NULL;
@@ -350,52 +345,57 @@ void MediaPlayer::decode(AVFrame* frame, double pts)
 	__android_log_print(ANDROID_LOG_INFO, TAG, "2");
 	*/
 	
-     double delay,ref_clock,diff,actual_delay=0;
-	 delay = pts - frame_last_pts; /* the pts from last time */
-     if(delay <= 0 || delay >= 1.0) {
-			/* if incorrect delay, use previous one */
-			delay = frame_last_delay;
-     }
+     
 
-     /* save for next time */
-     frame_last_delay = delay;
-     frame_last_pts = pts;
+}
 
-     /* update delay to sync to audio 
+void MediaPlayer::add_db_time()
+{
+	double pts,delay,ref_clock,diff,actual_delay=0;
+	delay = pts - frame_last_pts; /* the pts from last time */
+	if(delay <= 0 || delay >= 1.0) {
+		/* if incorrect delay, use previous one */
+		delay = frame_last_delay;
+	}
+	
+	/* save for next time */
+	frame_last_delay = delay;
+	frame_last_pts = pts;
+	
+	/* update delay to sync to audio 
      ref_clock = get_audio_clock(is);
      diff = pts - ref_clock;
-
-    
+	 
+	 
      sync_threshold = (delay > AV_SYNC_THRESHOLD) ? delay : AV_SYNC_THRESHOLD;
      if(fabs(diff) < AV_NOSYNC_THRESHOLD) {
-		if(diff <= -sync_threshold) {
-	  		delay = 0;
-		} else if(diff >= sync_threshold) {
-	  		delay = 2 * delay;
-		}
+	 if(diff <= -sync_threshold) {
+	 delay = 0;
+	 } else if(diff >= sync_threshold) {
+	 delay = 2 * delay;
+	 }
      }
-	*/
-     frame_timer += delay;
-     /* computer the REAL delay */
-     actual_delay = frame_timer - (av_gettime() / 1000000.0);
-     if(actual_delay < 0.010) {
-			/* Really it should skip the picture instead */
-			actual_delay = 0.010;
-     }
-     //schedule_refresh(is, (int)(actual_delay * 1000 + 0.5));
+	 */
+	frame_timer += delay;
+	/* computer the REAL delay */
+	actual_delay = frame_timer - (av_gettime() / 1000000.0);
+	if(actual_delay < 0.010) {
+		/* Really it should skip the picture instead */
+		actual_delay = 0.010;
+	}
+	//schedule_refresh(is, (int)(actual_delay * 1000 + 0.5));
 	__android_log_print(ANDROID_LOG_INFO, TAG, "delay: %f",delay);
-	 __android_log_print(ANDROID_LOG_INFO, TAG, "frame_last_delay: %f",frame_last_delay);
+	__android_log_print(ANDROID_LOG_INFO, TAG, "frame_last_delay: %f",frame_last_delay);
     __android_log_print(ANDROID_LOG_INFO, TAG, "frame_timer: %f",frame_timer);
 	__android_log_print(ANDROID_LOG_INFO, TAG, "actual_delay:%f",actual_delay);
 	__android_log_print(ANDROID_LOG_INFO, TAG, "pts:%f",pts);
     
-	sPlayer->vp->frame=frame;
+	//sPlayer->vp->frame=frame;
 	//vp->frame=frame;
 	// Convert the image from its native format to RGB
-	//video_display(NULL,pts);
-	SetTimer()
+	video_display(NULL,pts);
+	//SetTimer()
 }
-
 
 void MediaPlayer::video_display(AVFrame *frame,double pts)
 {
