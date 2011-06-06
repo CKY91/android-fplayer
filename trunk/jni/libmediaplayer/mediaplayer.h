@@ -164,19 +164,21 @@ private:
 	static void					ffmpegNotify(void* ptr, int level, const char* fmt, va_list vl);
 	static void*				startPlayer(void* ptr);
 	static void*				startRendering(void* ptr);
-
+	static void					time_update_video(int num);
+	
 	static void 				decode(AVFrame* frame, double pts);
 	static void 				decode(int16_t* buffer, int buffer_size);
 
 	void						decodeMovie(void* ptr);
 	void 						render(void* ptr);
-	void                        add_db_time();
+	void                        add_db_time(double pts);
+	void						showPreview(AVFrame* frame, double pts);
 	static void                 video_display(AVFrame* frame,double pts);
 	double 						mTime;
 	pthread_mutex_t             mLock;
 	pthread_t					mPlayerThread;
 	pthread_t					mRenderThread;
-	Vector<AVFrame*>			mVideoQueue;
+	Vector<VideoPicture*>			mVideoQueue;
     //Mutex                       mNotifyLock;
     //Condition                   mSignal;
     MediaPlayerListener*		mListener;
