@@ -536,7 +536,7 @@ void MediaPlayer::render(void* ptr)
 		    	//__android_log_print(ANDROID_LOG_INFO, TAG, "4");
 		    }
 		}
-		usleep(20);
+		usleep(20*10000);
 	}
 }
 
